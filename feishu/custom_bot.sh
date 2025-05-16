@@ -12,7 +12,3 @@ function custom_bot() {
 	curl -X POST -H "Content-Type: application/json" -d "$json" \
 		$BOT_URL &>/dev/null
 }
-
-if [ $# -gt 1 ]; then
-	custom_bot $1 $2 $3
-fi
