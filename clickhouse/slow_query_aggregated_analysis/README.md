@@ -4,6 +4,14 @@
 
 # 使用
 
+0. virtualenv
+
+```bash
+virtualenv venv
+source venv/bin/activate
+pip3 install pandas pandarallel sqlparse
+```
+
 1. 修改 export.sh 中的配置(host/user/pass)
 
 2. 导出一段时间的查询：
