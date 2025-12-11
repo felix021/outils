@@ -1,0 +1,4 @@
+query_log*
+venv
+*.log
+*.gz

@@ -10,6 +10,15 @@ except:
     exit(1)
 
 try:
+    from pandarallel import pandarallel
+except:
+    print("Please install pandas using 'pip3 install pandarallel'")
+    exit(1)
+
+# use at most half of the cores by default
+pandarallel.initialize(nb_workers=os.cpu_count() // 2, progress_bar=True)
+
+try:
     import sqlparse
     from sqlparse.sql import Token, TokenList
 except:
@@ -54,13 +63,13 @@ def parse_query(query):
 def aggregate_queries(file_path):
     global total
     # Read the tab-separated file
-    df = pd.read_csv(file_path, sep='\t')
+    df = pd.read_csv(file_path, sep='\t', encoding='latin-1')
 
     total = len(df.index)
     print("total queries: %d" % (total), file=sys.stderr)
 
     # Parse queries to get query patterns
-    df['query_pattern'] = df['query'].apply(parse_query)
+    df['query_pattern'] = df['query'].parallel_apply(parse_query)
     print("\nall parsed", file=sys.stderr)
 
     # Aggregate duration_second, memory_usage, user_cpu and execution count by query pattern

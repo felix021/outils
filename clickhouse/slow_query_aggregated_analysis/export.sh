@@ -5,6 +5,13 @@ cd `dirname $0`
 begin=$1
 end=$2
 file=${3:-query_log}
+cluster=${4}
+
+query_table=system.query_log
+if [ -z "$cluster" ]; then
+    query_table="clusterAllReplicas('$cluster', $query_table)"
+fi
+
 
 if [ -z "$begin" -o -z "$end" ]; then
 	echo "Usage: $0 <BEGIN_TIME> <END_TIME> [FILE]"
@@ -31,7 +38,7 @@ clickhouse client --host "$CK_HOST" --user "$CK_USER" --password "$CK_PASS" --qu
     written_rows,
     written_bytes,
     query
-  from system.query_log
+  from $query_table
   where query_start_time between '$begin' and '$end'
     and type = 'QueryFinish'
     and arrayExists(x -> x LIKE '\''system.%'\'', tables) != 1
