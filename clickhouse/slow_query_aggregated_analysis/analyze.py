@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import os
 import sys
 import re
 
@@ -20,37 +21,47 @@ pandarallel.initialize(nb_workers=os.cpu_count() // 2, progress_bar=True)
 
 try:
     import sqlparse
-    from sqlparse.sql import Token, TokenList
+    from sqlparse.sql import Token, TokenList, Comment
 except:
     print("Please install sqlparse using 'pip3 install sqlparse'")
     exit(1)
 
-total = 0
-current = 0
+# excel supports at most 32768 characters for one cell, also enough for sql pattern
+max_sql_pattern_length = 30000
+
+ck_list_pattern = r'^\[([^,]+,\s*)*([^]]+)\]'
 
 def replace_constants_with_placeholder(sql):
+    sql = sql if len(sql) < max_sql_pattern_length else sql[:max_sql_pattern_length]
+
     parsed = sqlparse.parse(sql)
     statement = parsed[0]
 
     def replace_tokens(token_list):
         for token in token_list.tokens:
-            if token.ttype in (sqlparse.tokens.Literal.Number.Integer,
+            if token.is_keyword or token.is_whitespace:
+                continue
+            elif token.ttype in (sqlparse.tokens.Literal.Number.Integer,
                                sqlparse.tokens.Literal.Number.Float,
                                sqlparse.tokens.Literal.String.Single):
                 token.value = '?'
+            elif token.ttype is None and token.value.startswith('[') and re.match(ck_list_pattern, token.value):
+                token.value = re.sub(ck_list_pattern, '[?]', token.value)
+                token.tokens = [Token(sqlparse.tokens.String, token.value)]
+                continue
+            elif isinstance(token, Comment):
+                token.value = '/* COMMENT */ '
+                # replace tokens to a single string token
+                token.tokens = [Token(sqlparse.tokens.String, token.value)]
             elif isinstance(token, TokenList):
                 replace_tokens(token)
 
     replace_tokens(statement)
     return str(statement)
 
-def parse_query(query):
-    global total, current
-    current += 1
-    if current % 10 == 0:
-        print("\r%10d/%10d" % (current, total), end='', file=sys.stderr)
-
+def normalize_query(query):
     # unescape backslash encoded string
+    # use latin-1 to ignore characters with incompatible encoding
     query = query.encode('latin-1', 'backslashreplace').decode('unicode-escape')
 
     # replace constant tokens with ?
@@ -64,12 +75,13 @@ def aggregate_queries(file_path):
     global total
     # Read the tab-separated file
     df = pd.read_csv(file_path, sep='\t', encoding='latin-1')
-
     total = len(df.index)
     print("total queries: %d" % (total), file=sys.stderr)
 
+    df = df.sample(frac=1) # shuffle for balanced parallel allocation
+
     # Parse queries to get query patterns
-    df['query_pattern'] = df['query'].parallel_apply(parse_query)
+    df['query_pattern'] = df['query'].parallel_apply(normalize_query)
     print("\nall parsed", file=sys.stderr)
 
     # Aggregate duration_second, memory_usage, user_cpu and execution count by query pattern
