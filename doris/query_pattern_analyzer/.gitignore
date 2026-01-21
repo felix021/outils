@@ -1,0 +1,10 @@
+venv
+config.sh
+
+query_log*
+*.tsv
+*.csv
+*.log
+*.gz
+*.xz
+*.bz2
