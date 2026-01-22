@@ -1,0 +1,7 @@
+config.sh
+query_log*
+venv
+*.log
+*.gz
+*.tsv
+*.zip

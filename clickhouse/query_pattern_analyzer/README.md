@@ -12,7 +12,13 @@ source venv/bin/activate
 pip3 install pandas pandarallel sqlparse
 ```
 
-1. 修改 export.sh 中的配置(host/user/pass)
+1. 修改 config.sh 中的配置(host/port/user/pass)
+
+```bash
+cp config_example.sh config.sh
+
+vi config.sh
+```
 
 2. 导出一段时间的查询：
 
